@@ -10,9 +10,7 @@ import (
 )
 
 type ProcessData struct {
-	CPU     string `json:"cpu"`
-	Mem     string `json:"mem"`
-	Command string `json:"command"`
+	Values map[string]string `json:"values"`
 }
 
 type TimeSeriesData struct {
@@ -29,7 +27,7 @@ func FetchTopData(interval, count int) ([]TimeSeriesData, error) {
 	}
 
 	var timeSeriesData []TimeSeriesData
-	var cpuIndex, memIndex, commandIndex int
+	var headers []string
 	headerParsed := false
 	var currentTime string
 	var currentProcesses []ProcessData
@@ -55,17 +53,7 @@ func FetchTopData(interval, count int) ([]TimeSeriesData, error) {
 
 		if strings.HasPrefix(line, "  PID") {
 			headerParsed = true
-			headers := strings.Fields(line)
-			for i, header := range headers {
-				switch header {
-				case "%CPU":
-					cpuIndex = i
-				case "%MEM":
-					memIndex = i
-				case "COMMAND":
-					commandIndex = i
-				}
-			}
+			headers = strings.Fields(line)
 			continue
 		}
 
@@ -79,16 +67,14 @@ func FetchTopData(interval, count int) ([]TimeSeriesData, error) {
 			}
 
 			fields := strings.Fields(line)
-			if len(fields) > commandIndex {
-				cpu := fields[cpuIndex]
-				mem := fields[memIndex]
-				command := fields[commandIndex]
-
-				currentProcesses = append(currentProcesses, ProcessData{
-					CPU:     cpu,
-					Mem:     mem,
-					Command: command,
-				})
+			if len(fields) >= len(headers) {
+				processData := ProcessData{
+					Values: make(map[string]string),
+				}
+				for i, header := range headers {
+					processData.Values[header] = fields[i]
+				}
+				currentProcesses = append(currentProcesses, processData)
 			}
 		}
 	}
@@ -111,4 +97,3 @@ func ToJSON(data []TimeSeriesData) (string, error) {
 	}
 	return string(jsonData), nil
 }
-
